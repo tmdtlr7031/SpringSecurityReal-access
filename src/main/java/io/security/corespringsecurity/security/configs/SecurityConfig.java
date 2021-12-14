@@ -86,8 +86,16 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login"))
                 .accessDeniedPage("/denied")
                 .accessDeniedHandler(accessDeniedHandler())
-//        .and()
-//                .addFilterBefore(customFilterSecurityInterceptor(), FilterSecurityInterceptor.class)
+                /**
+                 *  주석하면 윗쪽에 hasRole 있는 부분이 적용됨
+                 *  - 주석 풀었을 때 customFilterSecurityInterceptor 결과 null을 뱉으면 권한이 필요한 페이지도 그냥 이동되버림
+                 *  - 즉, 인가처리가 진행됐기 때문에 다음 필터로 원래 적용되는 FilterSecurityInterceptor를 타지 않는다.
+                 *      - antMatchers+hasRole 설정을 따르지 않게 됨
+                 *      - .anyRequest().authenticated() 는 ExpressionBasedFilterInvocationSecurityMetadataSource 클래스가 담당하기 때문에 커스텀한 필터에서는 인식하지 못함
+                 *          - 그래서 통과되버리는 것. -> 이를 위해선 DB 연동 데이터로 자원+권한에 대한 접근 여부 결정해야함.
+                 */
+        .and()
+                .addFilterBefore(customFilterSecurityInterceptor(), FilterSecurityInterceptor.class)
         ;
 
         http.csrf().disable();
@@ -135,13 +143,16 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         return commonAccessDeniedHandler;
     }
 
+    /**
+     *  인가처리를 UrlFilterInvocationSecurityMetadatsSource.java를 이용해서 하기 위해.
+     */
     @Bean
     public FilterSecurityInterceptor customFilterSecurityInterceptor() throws Exception {
 
         FilterSecurityInterceptor filterSecurityInterceptor = new FilterSecurityInterceptor();
         filterSecurityInterceptor.setSecurityMetadataSource(urlFilterInvocationSecurityMetadataSource());
-        filterSecurityInterceptor.setAccessDecisionManager(affirmativeBased());
-        filterSecurityInterceptor.setAuthenticationManager(authenticationManagerBean());
+        filterSecurityInterceptor.setAccessDecisionManager(affirmativeBased()); // 가장 보편적. (여러 인가가 있을 때 하나만 승인되도 통과)
+        filterSecurityInterceptor.setAuthenticationManager(authenticationManagerBean()); // 인가처리 전 인증된 사용자인지 검사를 위해
         return filterSecurityInterceptor;
     }
 
@@ -151,7 +162,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     }
 
     private List<AccessDecisionVoter<?>> getAccessDecistionVoters() {
-        return Arrays.asList(new RoleVoter());
+        return Arrays.asList(new RoleVoter()); // 여러개 넘길 수 있지만 여기선 하나만. (prefix가 ROLE_ 붙은 방식인듯)
     }
 
     @Bean
