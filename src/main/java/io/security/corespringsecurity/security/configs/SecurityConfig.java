@@ -2,6 +2,7 @@ package io.security.corespringsecurity.security.configs;
 
 import io.security.corespringsecurity.security.common.FormWebAuthenticationDetailsSource;
 import io.security.corespringsecurity.security.factory.UrlResourcesMapFactoryBean;
+import io.security.corespringsecurity.security.filter.PermitAllFilter;
 import io.security.corespringsecurity.security.handler.AjaxAuthenticationFailureHandler;
 import io.security.corespringsecurity.security.handler.AjaxAuthenticationSuccessHandler;
 import io.security.corespringsecurity.security.handler.FormAccessDeniedHandler;
@@ -51,6 +52,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     private AuthenticationFailureHandler formAuthenticationFailureHandler;
     @Autowired
     private SecurityResourceService securityResourceService;
+
+    private String[] permitAllResources = {"/","/login","/user/login/**"};
 
     @Override
     public void configure(WebSecurity web) throws Exception {
@@ -152,13 +155,13 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
      *  인가처리를 UrlFilterInvocationSecurityMetadatsSource.java를 이용해서 하기 위해.
      */
     @Bean
-    public FilterSecurityInterceptor customFilterSecurityInterceptor() throws Exception {
+    public PermitAllFilter customFilterSecurityInterceptor() throws Exception {
 
-        FilterSecurityInterceptor filterSecurityInterceptor = new FilterSecurityInterceptor();
-        filterSecurityInterceptor.setSecurityMetadataSource(urlFilterInvocationSecurityMetadataSource());
-        filterSecurityInterceptor.setAccessDecisionManager(affirmativeBased()); // 가장 보편적. (여러 인가가 있을 때 하나만 승인되도 통과)
-        filterSecurityInterceptor.setAuthenticationManager(authenticationManagerBean()); // 인가처리 전 인증된 사용자인지 검사를 위해
-        return filterSecurityInterceptor;
+        PermitAllFilter permitAllFilter = new PermitAllFilter(permitAllResources);
+        permitAllFilter.setSecurityMetadataSource(urlFilterInvocationSecurityMetadataSource());
+        permitAllFilter.setAccessDecisionManager(affirmativeBased()); // 가장 보편적. (여러 인가가 있을 때 하나만 승인되도 통과)
+        permitAllFilter.setAuthenticationManager(authenticationManagerBean()); // 인가처리 전 인증된 사용자인지 검사를 위해
+        return permitAllFilter;
     }
 
     private AccessDecisionManager affirmativeBased() {
